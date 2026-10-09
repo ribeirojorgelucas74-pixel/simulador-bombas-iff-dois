@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Sistemas: Bombas Hidráulicas & Gestão Cumulativa</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            },
+            gear: '#3b82f6',
+            vane: '#8b5cf6',
+            piston: '#ec4899'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <!-- TOP HEADER -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-filter blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-gradient-to-tr from-brand-600 to-emerald-400 rounded-xl shadow-lg shadow-brand-500/20">
+          <i class="fa-solid fa-gears text-2xl text-slate-950"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight text-slate-100 flex items-center gap-2">
+            Simulador de Sistemas & Bombas Hidráulicas
+            <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full border border-brand-500/30">IFF Educational</span>
+          </h1>
+          <p class="text-xs text-slate-400">Análise Sistemática: Causa, Efeito Cumulativo e Gestão de Recursos</p>
+        </div>
+      </div>
+
+      <!-- MODE TOGGLE (Técnico vs Metáfora Acadêmica/Financeira) -->
+      <div class="flex items-center gap-2 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+        <button id="btnModeTech" onclick="setMetaphorMode(false)" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-brand-600 text-white shadow-md">
+          <i class="fa-solid fa-industry mr-1.5"></i> Visão Técnica (Engenharia)
+        </button>
+        <button id="btnModeAcademic" onclick="setMetaphorMode(true)" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-graduation-cap mr-1.5"></i> Metáfora Acadêmica & Financeira
+        </button>
+      </div>
+
+      <!-- RESUMO DE RECURSOS DA RODADA -->
+      <div class="flex items-center gap-4 bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-800">
+        <div class="text-right">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">Recursos / Foco Disponível</span>
+          <span id="txtResources" class="text-base font-extrabold text-emerald-400">R$ 100 / 100 pts</span>
+        </div>
+        <div class="h-7 w-[1px] bg-slate-800"></div>
+        <div class="text-right">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">Semestre / Ciclo</span>
+          <span id="txtCycle" class="text-base font-extrabold text-sky-400">1 / 12</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT COLUMN: CONTROL & PUMP SELECTION (4 cols) -->
+    <section class="lg:col-span-4 flex flex-col gap-5">
+      
+      <!-- CARD 1: SELEÇÃO DA BOMBA -->
+      <div class="glass-card rounded-2xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-pump-soap text-brand-400"></i> 1. Tipo de Arquitetura (Bomba)
+          </h2>
+          <span class="text-[11px] text-slate-400" id="pumpBadgeType">Engrenagens</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <!-- BOMBA DE ENGRENAGENS -->
+          <button onclick="selectPump('gear')" id="btnPumpGear" class="p-2.5 rounded-xl border border-brand-500 bg-brand-500/10 text-left transition-all hover:border-brand-400 flex flex-col justify-between">
+            <div>
+              <i class="fa-solid fa-cog text-gear text-lg mb-1"></i>
+              <div class="text-xs font-bold text-slate-200">Engrenagens</div>
+            </div>
+            <span class="text-[10px] text-slate-400 mt-2 block">Baixo Custo / Robusta</span>
+          </button>
+
+          <!-- BOMBA DE PALHETAS -->
+          <button onclick="selectPump('vane')" id="btnPumpVane" class="p-2.5 rounded-xl border border-slate-700 bg-slate-800/50 text-left transition-all hover:border-vane flex flex-col justify-between">
+            <div>
+              <i class="fa-solid fa-fan text-vane text-lg mb-1"></i>
+              <div class="text-xs font-bold text-slate-200">Palhetas</div>
+            </div>
+            <span class="text-[10px] text-slate-400 mt-2 block">Moderada / Ajustável</span>
+          </button>
+
+          <!-- BOMBA DE PISTÕES -->
+          <button onclick="selectPump('piston')" id="btnPumpPiston" class="p-2.5 rounded-xl border border-slate-700 bg-slate-800/50 text-left transition-all hover:border-piston flex flex-col justify-between">
+            <div>
+              <i class="fa-solid fa-sliders text-piston text-lg mb-1"></i>
+              <div class="text-xs font-bold text-slate-200">Pistões</div>
+            </div>
+            <span class="text-[10px] text-slate-400 mt-2 block">Alta Precisão / Sensível</span>
+          </button>
+        </div>
+
+        <!-- FICHA TÉCNICA E COMPARATIVO COM A AULA -->
+        <div id="pumpSpecsBox" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-xs text-slate-300 space-y-2">
+          <!-- Preenchido via JavaScript -->
+        </div>
+      </div>
+
+      <!-- CARD 2: GESTÃO DE RECURSOS E MANUTENÇÃO (DECISÕES DO CICLO) -->
+      <div class="glass-card rounded-2xl p-4 shadow-xl flex-1 flex flex-col justify-between space-y-4">
+        <div>
+          <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-amber-400"></i> 2. Decisões de Alocação de Recursos
+          </h2>
+          <p class="text-xs text-slate-400 mb-4" id="allocationHelpText">
+            Distribua seu orçamento/foco limite por semestre entre manutenção preventiva, alívio de pressão e execução útil.
+          </p>
+
+          <!-- SLIDER 1: FILTRAGEM & CONTRA CONTAMINAÇÃO -->
+          <div class="space-y-1 mb-3">
+            <div class="flex justify-between text-xs">
+              <span class="font-semibold text-slate-300" id="lblSliderFilter">Filtragem e Limpeza do Fluido</span>
+              <span class="font-mono text-emerald-400 font-bold" id="valSliderFilter">R$ 20</span>
+            </div>
+            <input type="range" id="inputFilter" min="0" max="50" value="20" oninput="updateAllocation()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+            <p class="text-[10px] text-slate-400" id="descFilter">Previne o acúmulo gradual de sujeira/dívida técnica no sistema.</p>
+          </div>
+
+          <!-- SLIDER 2: ANTI-CAVITAÇÃO / ALÍVIO DE PRESSÃO -->
+          <div class="space-y-1 mb-3">
+            <div class="flex justify-between text-xs">
+              <span class="font-semibold text-slate-300" id="lblSliderCavitation">Controle de Cavitação & Aeração</span>
+              <span class="font-mono text-amber-400 font-bold" id="valSliderCavitation">R$ 20</span>
+            </div>
+            <input type="range" id="inputCavitation" min="0" max="50" value="20" oninput="updateAllocation()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
+            <p class="text-[10px] text-slate-400" id="descCavitation">Evita bolhas de vácuo, corrosão interna implosiva e burnout.</p>
+          </div>
+
+          <!-- SLIDER 3: DEMANDA DE PRESSÃO / CARGA DE TRABALHO -->
+          <div class="space-y-1 mb-3">
+            <div class="flex justify-between text-xs">
+              <span class="font-semibold text-slate-300" id="lblSliderWorkload">Demanda de Carga / Trabalho Útil</span>
+              <span class="font-mono text-sky-400 font-bold" id="valSliderWorkload">R$ 40</span>
+            </div>
+            <input type="range" id="inputWorkload" min="10" max="80" value="40" oninput="updateAllocation()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500">
+            <p class="text-[10px] text-slate-400" id="descWorkload">Define o rendimento e produção útil no semestre.</p>
+          </div>
+
+          <!-- BARRAS DE CONSUMO DE RECURSOS -->
+          <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 space-y-1.5 mt-2">
+            <div class="flex justify-between text-[11px] font-bold">
+              <span class="text-slate-400">Recursos Alocados:</span>
+              <span id="txtAllocatedSummary" class="text-emerald-400 font-mono">80 / 100</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barAllocated" class="h-full bg-emerald-500 transition-all duration-300" style="width: 80%;"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-400">
+              <span>Reserva de Emergência: <strong id="txtReserve" class="text-slate-200">20 pts</strong></span>
+              <span id="warnOverbudget" class="text-rose-400 hidden font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Orçamento Excedido!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTÃO PARA AVANÇAR O CICLO / SEMESTRE -->
+        <div class="pt-2">
+          <button id="btnNextCycle" onclick="runNextCycle()" class="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 font-bold text-slate-950 rounded-xl shadow-lg shadow-brand-600/30 transition-all flex items-center justify-center gap-2">
+            <span>Avançar para o Próximo Ciclo</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: VISUAL SIMULATION, TELEMETRY & CAUSE-EFFECT GRAPH (8 cols) -->
+    <section class="lg:col-span-8 flex flex-col gap-5">
+      
+      <!-- PANEL 1: CANVAS ANIMATION & LIVE TELEMETRY -->
+      <div class="glass-card rounded-2xl p-4 shadow-xl relative overflow-hidden flex flex-col gap-4">
+        
+        <!-- CANVAS HEADER & STATUS -->
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-microchip text-sky-400"></i> Animação do Escoamento & Estado Físico
+            </h3>
+            <p class="text-xs text-slate-400">Visualização dinâmica de fluido, pulsação, contaminação e partículas</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span id="badgeStatus" class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <i class="fa-solid fa-circle-check"></i> Operação Normal
+            </span>
+            <button onclick="resetSimulation()" class="p-1.5 text-slate-400 hover:text-slate-100 bg-slate-800 rounded-lg text-xs border border-slate-700" title="Reiniciar Simulação">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- CANVAS INTERATIVO DAS BOMBAS -->
+        <div class="relative w-full h-52 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden flex items-center justify-center">
+          <canvas id="pumpCanvas" width="700" height="210" class="w-full h-full object-contain"></canvas>
+          
+          <!-- LEGENDA SOBREPOSTA NO CANVAS -->
+          <div class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-2.5 py-1 text-[10px] text-slate-300 flex items-center gap-3">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Partículas de Contaminação</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white border border-slate-400 inline-block"></span> Bolhas de Cavitação</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-400 inline-block"></span> Fluido Ativo</span>
+          </div>
+        </div>
+
+        <!-- TELEMETRIA EM TEMPO REAL (4 CARDS) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          
+          <!-- INTEGRIDADE DA BOMBA -->
+          <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Integridade Física</span>
+            <div class="flex items-baseline gap-1 my-1">
+              <span id="valHealth" class="text-xl font-extrabold text-emerald-400 font-mono">100</span>
+              <span class="text-xs text-slate-500">%</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barHealth" class="h-full bg-emerald-500 transition-all duration-300" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- CONTAMINAÇÃO ACUMULADA -->
+          <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block" id="titleTelemetryContamination">Contaminação (Sujeira)</span>
+            <div class="flex items-baseline gap-1 my-1">
+              <span id="valContamination" class="text-xl font-extrabold text-amber-400 font-mono">0</span>
+              <span class="text-xs text-slate-500">%</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barContamination" class="h-full bg-amber-500 transition-all duration-300" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- CAVITAÇÃO & AERAÇÃO -->
+          <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block" id="titleTelemetryCavitation">Cavitação & Aeração</span>
+            <div class="flex items-baseline gap-1 my-1">
+              <span id="valCavitation" class="text-xl font-extrabold text-rose-400 font-mono">0</span>
+              <span class="text-xs text-slate-500">%</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barCavitation" class="h-full bg-rose-500 transition-all duration-300" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- RUÍDO & PULSAÇÃO -->
+          <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block" id="titleTelemetryNoise">Ruído / Estresse</span>
+            <div class="flex items-baseline gap-1 my-1">
+              <span id="valNoise" class="text-xl font-extrabold text-purple-400 font-mono">35</span>
+              <span class="text-xs text-slate-500">dB</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barNoise" class="h-full bg-purple-500 transition-all duration-300" style="width: 35%;"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PANEL 2: GRÁFICO HISTÓRICO E EFEITO CUMULATIVO -->
+      <div class="glass-card rounded-2xl p-4 shadow-xl flex-1 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-chart-line text-emerald-400"></i> Linha do Tempo: Degradação Silenciosa e Efeito Cumulativo
+            </h3>
+            <p class="text-xs text-slate-400">Observe que pequenos déficits de manutenção acumulam estresse invisível até o colapso abrupto.</p>
+          </div>
+          <span class="text-[10px] text-slate-400 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-800">Efeito Não-Linear</span>
+        </div>
+
+        <div class="w-full h-48 relative bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
+          <canvas id="timelineChart"></canvas>
+        </div>
+
+        <!-- EXPLICAÇÃO PEDAGÓGICA -->
+        <div class="mt-3 p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed" id="pedagogicalMessage">
+          <!-- Mensagem dinâmica por JS -->
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL DIAGNÓSTICO DE COLAPSO / SUCESSO -->
+  <div id="reportModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div id="modalIconBg" class="p-3 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/30">
+          <i id="modalIcon" class="fa-solid fa-triangle-exclamation text-2xl"></i>
+        </div>
+        <div>
+          <h3 id="modalTitle" class="text-lg font-bold text-slate-100">Colapso no Sistema Hidráulico!</h3>
+          <p id="modalSubtitle" class="text-xs text-slate-400">Relatório Analítico de Causa e Consequência</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800 text-xs leading-relaxed text-slate-300" id="modalBody">
+        <!-- Conteúdo dinâmico gerado ao terminar o ciclo ou falhar -->
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all">
+          Revisar Dados
+        </button>
+        <button onclick="resetSimulation(); closeModal();" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-brand-600/30 transition-all">
+          Tentar Novo Ciclo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER PEDAGÓGICO -->
+  <footer class="border-t border-slate-800 bg-slate-900/50 py-3 px-4 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <span>Conceitos baseados em: <strong>Bombas de Engrenagens, Palhetas e Pistões (Profº Leonardo Cardoso - IFF)</strong></span>
+      <span>Teoria Geral dos Sistemas: Realimentação, Escassez & Resiliência</span>
+    </div>
+  </footer>
+
+  <!-- SCRIPT DE LÓGICA E SIMULAÇÃO -->
+  <script>
+    // --- ESTADO DA SIMULAÇÃO ---
+    const state = {
+      isAcademicMetaphor: false,
+      cycle: 1,
+      maxCycles: 12,
+      resourcesTotal: 100,
+      pumpType: 'gear', // gear, vane, piston
+      
+      // Decisões de alocação (dinheiro / foco)
+      allocFilter: 20,
+      allocCavitation: 20,
+      allocWorkload: 40,
+
+      // Indicadores físicos acumulados (0-100)
+      health: 100,
+      contamination: 5,
+      cavitation: 2,
+      noise: 35,
+      accumulatedDamage: 0,
+      totalUsefulWork: 0,
+
+      // Histórico para o gráfico
+      history: {
+        labels: [0],
+        health: [100],
+        contamination: [5],
+        cavitation: [2],
+        workload: [0]
+      },
+
+      isCollapsed: false
+    };
+
+    // --- PROPRIEDADES E FICHA TÉCNICA DAS BOMBAS (Retirados da Apresentação IFF) ---
+    const PUMP_DATA = {
+      gear: {
+        name: "Bomba de Engrenagens",
+        cost: "Baixo (Barata e Robusta)",
+        pulsation: "Alta",
+        noise: "Elevado",
+        sensitivityContamination: "Baixa (Resistente)",
+        sensitivityCavitation: "Baixa (Resistente)",
+        metaphorName: "Estratégia de Esforço Bruto / Estudo de Última Hora",
+        metaphorDesc: "Custo baixo de energia inicial e tolerante a desorganização, porém gera alto ruído mental e ansiedade acumulada.",
+        techAdvantages: "Simples, compacta, leve, robusta e resistente a contaminantes e cavitação.",
+        techDisadvantages: "Alta pulsação de fluido e elevado nível de ruído.",
+        color: '#3b82f6',
+        baseNoise: 65,
+        contaminationWearFactor: 0.4,
+        cavitationWearFactor: 0.3
+      },
+      vane: {
+        name: "Bomba de Palhetas",
+        cost: "Moderado / Intermediário",
+        pulsation: "Menor / Moderada",
+        noise: "Menos Ruído",
+        sensitivityContamination: "Moderada / Sensível",
+        sensitivityCavitation: "Moderada / Sensível",
+        metaphorName: "Estratégia de Equilíbrio / Rotina Ajustável",
+        metaphorDesc: "Permite ajuste de fluxo de esforço (volume variável). Baixo ruído, mas exige manutenção consistente.",
+        techAdvantages: "Menor pulsação no fluxo e operação silenciosa. Opção de volume variável.",
+        techDisadvantages: "Preço intermediário e sensível a contaminação e cavitação.",
+        color: '#8b5cf6',
+        baseNoise: 35,
+        contaminationWearFactor: 1.0,
+        cavitationWearFactor: 0.9
+      },
+      piston: {
+        name: "Bomba de Pistões",
+        cost: "Elevado (Cara / Alta Tecnologia)",
+        pulsation: "Muito Baixa",
+        noise: "Pouco Ruído",
+        sensitivityContamination: "Muito Sensível (Crítica)",
+        sensitivityCavitation: "Muito Sensível (Crítica)",
+        metaphorName: "Estratégia de Alta Performance / Foco Total",
+        metaphorDesc: "Entrega os melhores resultados em menos tempo com fluidez máxima, mas qualquer sujeira/falha de planejamento gera colapso rápido (burnout).",
+        techAdvantages: "Pulsação muito baixa, pouquíssimo ruído e compensação remota de pressão.",
+        techDisadvantages: "Custo elevado e EXTREMAMENTE sensível a contaminação, cavitação e aeração.",
+        color: '#ec4899',
+        baseNoise: 15,
+        contaminationWearFactor: 2.5,
+        cavitationWearFactor: 2.2
+      }
+    };
+
+    // --- INICIALIZAÇÃO CHART.JS ---
+    let timelineChart;
+    function initChart() {
+      const ctx = document.getElementById('timelineChart').getContext('2d');
+      timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: state.history.labels,
+          datasets: [
+            {
+              label: 'Integridade (%)',
+              data: state.history.health,
+              borderColor: '#22c55e',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Contaminação (%)',
+              data: state.history.contamination,
+              borderColor: '#f59e0b',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              tension: 0.3
+            },
+            {
+              label: 'Cavitação (%)',
+              data: state.history.cavitation,
+              borderColor: '#f43f5e',
+              borderWidth: 1.5,
+              borderDash: [2, 2],
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            },
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // --- ANIMAÇÃO DO CANVAS DAS BOMBAS ---
+    let canvasAnimationId;
+    function renderCanvas() {
+      const canvas = document.getElementById('pumpCanvas');
+      const ctx = canvas.getContext('2d');
+      let angle = 0;
+
+      // Partículas do fluido
+      const particles = Array.from({ length: 40 }, () => ({
+        x: Math.random() * canvas.width,
+        y: 60 + Math.random() * 90,
+        speed: 1 + Math.random() * 3,
+        size: 2 + Math.random() * 3,
+        type: 'fluid'
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Fundo do tubo
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Tubulação Principal
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 14;
+        ctx.beginPath();
+        ctx.moveTo(30, 105);
+        ctx.lineTo(canvas.width - 30, 105);
+        ctx.stroke();
+
+        // Fluido Interno
+        const dirtyRatio = state.contamination / 100;
+        const r = Math.floor(14 + dirtyRatio * 120);
+        const g = Math.floor(165 - dirtyRatio * 100);
+        const b = Math.floor(233 - dirtyRatio * 180);
+        ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(30, 105);
+        ctx.lineTo(canvas.width - 30, 105);
+        ctx.stroke();
+
+        // Desenhar Bomba Central conforme Tipo
+        const cx = canvas.width / 2;
+        const cy = 105;
+        angle += (state.allocWorkload / 20) * (state.health > 0 ? 0.05 : 0);
+
+        // Carcaça da bomba
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = PUMP_DATA[state.pumpType].color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (state.pumpType === 'gear') {
+          // Duas Engrenagens
+          drawGear(ctx, cx - 16, cy, 20, angle, '#3b82f6');
+          drawGear(ctx, cx + 16, cy, 20, -angle, '#3b82f6');
+        } else if (state.pumpType === 'vane') {
+          // Rotor com Palhetas
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle);
+          ctx.strokeStyle = '#8b5cf6';
+          ctx.lineWidth = 3;
+          for (let i = 0; i < 6; i++) {
+            ctx.rotate(Math.PI / 3);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, 32);
+            ctx.stroke();
+          }
+          ctx.restore();
+        } else if (state.pumpType === 'piston') {
+          // Blocos de Pistões
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle);
+          ctx.fillStyle = '#ec4899';
+          for (let i = 0; i < 4; i++) {
+            ctx.rotate(Math.PI / 2);
+            const offset = Math.sin(angle * 2) * 8;
+            ctx.fillRect(-5, 10 + offset, 10, 20);
+          }
+          ctx.restore();
+        }
+
+        // Desenhar Partículas de Contaminação e Cavitação
+        particles.forEach(p => {
+          p.x += p.speed * (state.allocWorkload / 30);
+          if (p.x > canvas.width - 30) p.x = 30;
+
+          // Efeitos gráficos de sujeira e bolhas
+          if (Math.random() < state.contamination / 100) {
+            ctx.fillStyle = '#f59e0b'; // Sujeira
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + (Math.random() * 10 - 5), 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          if (Math.random() < state.cavitation / 100) {
+            ctx.strokeStyle = '#ffffff'; // Bolhas de ar / vácuo
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + (Math.random() * 12 - 6), 3, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        });
+
+        // Efeito de Trepidação/Pulsação
+        if (state.pumpType === 'gear' && state.health > 0) {
+          const shake = (Math.random() - 0.5) * (state.noise / 15);
+          canvas.style.transform = `translate(${shake}px, ${shake}px)`;
+        } else {
+          canvas.style.transform = 'translate(0px, 0px)';
+        }
+
+        canvasAnimationId = requestAnimationFrame(draw);
+      }
+
+      function drawGear(context, x, y, radius, rot, color) {
+        context.save();
+        context.translate(x, y);
+        context.rotate(rot);
+        context.fillStyle = color;
+        context.beginPath();
+        context.arc(0, 0, radius, 0, Math.PI * 2);
+        context.fill();
+
+        // Dentes
+        context.fillStyle = '#94a3b8';
+        for (let i = 0; i < 8; i++) {
+          context.rotate(Math.PI / 4);
+          context.fillRect(-3, -radius - 4, 6, 8);
+        }
+        context.restore();
+      }
+
+      draw();
+    }
+
+    // --- MUDAR DE MODO: TÉCNICO vs METÁFORA ACADÊMICA ---
+    function setMetaphorMode(isAcademic) {
+      state.isAcademicMetaphor = isAcademic;
+
+      const btnTech = document.getElementById('btnModeTech');
+      const btnAcad = document.getElementById('btnModeAcademic');
+
+      if (isAcademic) {
+        btnTech.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-slate-200";
+        btnAcad.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-brand-600 text-white shadow-md";
+
+        document.getElementById('lblSliderFilter').innerText = "Gestão de Tarefas & Estudo Regular (Anti-Acúmulo)";
+        document.getElementById('descFilter').innerText = "Evita o acúmulo de matérias pendentes, dívida de sono e trabalhos de última hora.";
+        
+        document.getElementById('lblSliderCavitation').innerText = "Saúde Mental & Alívio de Estresse (Anti-Burnout)";
+        document.getElementById('descCavitation').innerText = "Previne o colapso por esgotamento psicológico e excesso de pressão desordenada.";
+
+        document.getElementById('lblSliderWorkload').innerText = "Carga Acadêmica / Créditos Assumidos";
+        document.getElementById('descWorkload').innerText = "Define a quantidade de matérias e entregas buscadas no semestre.";
+
+        document.getElementById('titleTelemetryContamination').innerText = "Dívida Técnica / Pendências";
+        document.getElementById('titleTelemetryCavitation').innerText = "Índice de Esgotamento (Burnout)";
+        document.getElementById('titleTelemetryNoise').innerText = "Ansiedade / Ruído Mental";
+      } else {
+        btnAcad.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-slate-200";
+        btnTech.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-brand-600 text-white shadow-md";
+
+        document.getElementById('lblSliderFilter').innerText = "Filtragem e Limpeza do Fluido";
+        document.getElementById('descFilter').innerText = "Previne o acúmulo gradual de sujeira/dívida técnica no sistema.";
+
+        document.getElementById('lblSliderCavitation').innerText = "Controle de Cavitação & Aeração";
+        document.getElementById('descCavitation').innerText = "Evita bolhas de vácuo, corrosão interna implosiva e degradação.";
+
+        document.getElementById('lblSliderWorkload').innerText = "Demanda de Carga / Trabalho Útil";
+        document.getElementById('descWorkload').innerText = "Define o rendimento e produção útil no semestre.";
+
+        document.getElementById('titleTelemetryContamination').innerText = "Contaminação (Sujeira)";
+        document.getElementById('titleTelemetryCavitation').innerText = "Cavitação & Aeração";
+        document.getElementById('titleTelemetryNoise').innerText = "Ruído / Estresse";
+      }
+
+      updatePumpInfoBox();
+      updatePedagogicalMessage();
+    }
+
+    // --- ATUALIZAR SELEÇÃO DE BOMBA ---
+    function selectPump(type) {
+      if (state.cycle > 1) {
+        if (!confirm("Trocar de arquitetura no meio do processo reiniciará o ciclo. Deseja continuar?")) return;
+        resetSimulation();
+      }
+
+      state.pumpType = type;
+
+      // Estilo dos botões
+      ['gear', 'vane', 'piston'].forEach(t => {
+        const btn = document.getElementById(`btnPump${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (t === type) {
+          btn.className = `p-2.5 rounded-xl border border-${PUMP_DATA[t].color} bg-slate-800 text-left transition-all shadow-md`;
+        } else {
+          btn.className = "p-2.5 rounded-xl border border-slate-700 bg-slate-800/40 text-left transition-all hover:border-slate-500 opacity-70";
+        }
+      });
+
+      document.getElementById('pumpBadgeType').innerText = PUMP_DATA[type].name;
+      updatePumpInfoBox();
+      updatePhysics();
+    }
+
+    // --- ATUALIZAR FICHA TÉCNICA E PARALELO DA AULA ---
+    function updatePumpInfoBox() {
+      const data = PUMP_DATA[state.pumpType];
+      const container = document.getElementById('pumpSpecsBox');
+
+      if (state.isAcademicMetaphor) {
+        container.innerHTML = `
+          <div class="font-bold text-emerald-400 border-b border-slate-800 pb-1">${data.metaphorName}</div>
+          <p class="text-[11px] text-slate-300">${data.metaphorDesc}</p>
+          <div class="grid grid-cols-2 gap-1 text-[10px] pt-1">
+            <span><strong>Custo Energético:</strong> ${data.cost}</span>
+            <span><strong>Sensibilidade a Falhas:</strong> ${data.sensitivityContamination}</span>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="font-bold text-sky-400 border-b border-slate-800 pb-1">${data.name} (Aula Prof. Leonardo)</div>
+          <p class="text-[11px] text-emerald-300"><strong>Vantagens:</strong> ${data.techAdvantages}</p>
+          <p class="text-[11px] text-rose-300"><strong>Desvantagens:</strong> ${data.techDisadvantages}</p>
+        `;
+      }
+    }
+
+    // --- ATUALIZAR SLIDERS E ALOCAÇÃO DE RECURSOS ---
+    function updateAllocation() {
+      state.allocFilter = parseInt(document.getElementById('inputFilter').value);
+      state.allocCavitation = parseInt(document.getElementById('inputCavitation').value);
+      state.allocWorkload = parseInt(document.getElementById('inputWorkload').value);
+
+      document.getElementById('valSliderFilter').innerText = `R$ ${state.allocFilter}`;
+      document.getElementById('valSliderCavitation').innerText = `R$ ${state.allocCavitation}`;
+      document.getElementById('valSliderWorkload').innerText = `R$ ${state.allocWorkload}`;
+
+      const totalAllocated = state.allocFilter + state.allocCavitation + state.allocWorkload;
+      const reserve = state.resourcesTotal - totalAllocated;
+
+      document.getElementById('txtAllocatedSummary').innerText = `${totalAllocated} / ${state.resourcesTotal}`;
+      document.getElementById('barAllocated').style.width = `${Math.min(100, totalAllocated)}%`;
+      document.getElementById('txtReserve').innerText = `${reserve} pts`;
+
+      const warn = document.getElementById('warnOverbudget');
+      const btnNext = document.getElementById('btnNextCycle');
+
+      if (totalAllocated > state.resourcesTotal) {
+        warn.classList.remove('hidden');
+        btnNext.disabled = true;
+        btnNext.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        warn.classList.add('hidden');
+        btnNext.disabled = false;
+        btnNext.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    // --- LÓGICA FÍSICA E SIMULAÇÃO DE CADA CICLO ---
+    function runNextCycle() {
+      if (state.isCollapsed) return;
+
+      const pData = PUMP_DATA[state.pumpType];
+
+      // 1. Cálculo do incremento de contaminação (Sujeira / Dívida Técnica)
+      // Se o investimento em filtro for menor que a carga de trabalho, acumula contaminação
+      const filterDeficit = Math.max(0, (state.allocWorkload * 0.6) - state.allocFilter);
+      const newContamination = state.contamination + (filterDeficit * 1.5);
+
+      // 2. Cálculo do incremento de cavitação (Bolhas / Burnout)
+      // Se a pressão/carga for alta sem alívio de cavitação
+      const cavitationDeficit = Math.max(0, (state.allocWorkload * 0.5) - state.allocCavitation);
+      const newCavitation = state.cavitation + (cavitationDeficit * 1.8);
+
+      // 3. Dano Acumulado à Integridade (Efeito Cumulativo Não-Linear)
+      // O dano depende da sensibilidade do tipo de bomba!
+      const damageFromContamination = (newContamination * 0.15) * pData.contaminationWearFactor;
+      const damageFromCavitation = (newCavitation * 0.20) * pData.cavitationWearFactor;
+      const totalCycleDamage = damageFromContamination + damageFromCavitation;
+
+      // Aumento progressivo não-linear do dano
+      state.accumulatedDamage += totalCycleDamage;
+      state.health = Math.max(0, Math.round(100 - state.accumulatedDamage));
+
+      state.contamination = Math.min(100, Math.round(newContamination));
+      state.cavitation = Math.min(100, Math.round(newCavitation));
+
+      // 4. Ruído e Pulsação
+      state.noise = Math.min(100, Math.round(pData.baseNoise + (state.contamination * 0.3) + (state.cavitation * 0.2)));
+
+      // 5. Trabalho Útil Gerado
+      const cycleWork = Math.round(state.allocWorkload * (state.health / 100));
+      state.totalUsefulWork += cycleWork;
+
+      // Atualizar Histórico
+      state.cycle += 1;
+      state.history.labels.push(state.cycle - 1);
+      state.history.health.push(state.health);
+      state.history.contamination.push(state.contamination);
+      state.history.cavitation.push(state.cavitation);
+      state.history.workload.push(cycleWork);
+
+      timelineChart.update();
+      updatePhysics();
+
+      // Checar Condição de Colapso ou Término
+      if (state.health <= 0) {
+        state.isCollapsed = true;
+        showReportModal(false);
+      } else if (state.cycle > state.maxCycles) {
+        showReportModal(true);
+      }
+    }
+
+    // --- ATUALIZAÇÃO DA INTERFACE (TELEMETRIA E BARRAS) ---
+    function updatePhysics() {
+      document.getElementById('txtCycle').innerText = `${state.cycle} / ${state.maxCycles}`;
+      
+      document.getElementById('valHealth').innerText = state.health;
+      document.getElementById('barHealth').style.width = `${state.health}%`;
+
+      document.getElementById('valContamination').innerText = state.contamination;
+      document.getElementById('barContamination').style.width = `${state.contamination}%`;
+
+      document.getElementById('valCavitation').innerText = state.cavitation;
+      document.getElementById('barCavitation').style.width = `${state.cavitation}%`;
+
+      document.getElementById('valNoise').innerText = state.noise;
+      document.getElementById('barNoise').style.width = `${state.noise}%`;
+
+      // Status Badge
+      const badge = document.getElementById('badgeStatus');
+      if (state.health > 70) {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Operação Normal`;
+      } else if (state.health > 30) {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Degradação Acumulada`;
+      } else {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        badge.innerHTML = `<i class="fa-solid fa-skull"></i> Risco Imminente de Colapso`;
+      }
+
+      updatePedagogicalMessage();
+    }
+
+    // --- MENSAGEM PEDAGÓGICA DINÂMICA ---
+    function updatePedagogicalMessage() {
+      const box = document.getElementById('pedagogicalMessage');
+      const pData = PUMP_DATA[state.pumpType];
+
+      if (state.isAcademicMetaphor) {
+        if (state.contamination > 50) {
+          box.innerHTML = `<strong class="text-amber-400"><i class="fa-solid fa-lightbulb"></i> Lição sobre Dívida Técnica:</strong> Seu acúmulo de tarefas pendentes (${state.contamination}%) está corroendo seu foco. Na bomba de ${pData.name}, isso equivale ao óleo sujo riscando os componentes internos.`;
+        } else if (state.cavitation > 50) {
+          box.innerHTML = `<strong class="text-rose-400"><i class="fa-solid fa-lightbulb"></i> Lição sobre Burnout:</strong> O estresse excessivo sem momentos de descanso (${state.cavitation}%) cria 'implosões' de motivação, minando sua capacidade de produção.`;
+        } else {
+          box.innerHTML = `<strong class="text-emerald-400"><i class="fa-solid fa-lightbulb"></i> Equilíbrio de Sistemas:</strong> Você está conseguindo manter o sistema estável! A resiliência não vem de não trabalhar, mas de alocar recursos suficientes para manutenção diária.`;
+        }
+      } else {
+        box.innerHTML = `<strong class="text-sky-400"><i class="fa-solid fa-gears"></i> Análise de Sistemas Hidráulicos (Prof. Leonardo Cardoso):</strong> 
+        A bomba de <strong>${pData.name}</strong> possui desvantagem de <em>${pData.techDisadvantages}</em>. Observe no gráfico como a falta de filtragem gera degradação não-linear ao longo dos semestres.`;
+      }
+    }
+
+    // --- MODAL DE DIAGNÓSTICO (FINAL DO JOGO OU COLAPSO) ---
+    function showReportModal(isSuccess) {
+      const modal = document.getElementById('reportModal');
+      const title = document.getElementById('modalTitle');
+      const icon = document.getElementById('modalIcon');
+      const iconBg = document.getElementById('modalIconBg');
+      const body = document.getElementById('modalBody');
+
+      modal.classList.remove('hidden');
+
+      const pData = PUMP_DATA[state.pumpType];
+
+      if (!isSuccess) {
+        title.innerText = state.isAcademicMetaphor ? "Colapso Acadêmico / Reprovação!" : "Falha Catastrófica da Bomba!";
+        icon.className = "fa-solid fa-triangle-exclamation text-2xl";
+        iconBg.className = "p-3 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/30";
+
+        body.innerHTML = `
+          <p><strong>Causa Principal do Colapso:</strong> O colapso do sistema não ocorreu por um único erro no Ciclo ${state.cycle - 1}, mas pelo <strong>acúmulo gradual e não-linear de pequenas negligências</strong> ao longo dos semestres.</p>
+          <ul class="list-disc pl-4 space-y-1 my-2 text-slate-300">
+            <li><strong>Contaminação Acumulada:</strong> ${state.contamination}%</li>
+            <li><strong>Cavitação / Aeração:</strong> ${state.cavitation}%</li>
+            <li><strong>Arquitetura Utilizada:</strong> ${pData.name} (${state.isAcademicMetaphor ? pData.metaphorName : 'Sensibilidade Técnica Alta'})</li>
+          </ul>
+          <p class="text-amber-300"><strong>Conceito Chave de Sistemas:</strong> Dispositivos como a <em>Bomba de Pistões</em> oferecem alta eficiência, porém são extremamente sensíveis. Sem filtragem constante, uma pequena sujeira multiplica a degradação até travar o sistema.</p>
+        `;
+      } else {
+        title.innerText = state.isAcademicMetaphor ? "Ciclo Concluído com Sucesso!" : "Operação Finalizada com Sucesso!";
+        icon.className = "fa-solid fa-trophy text-2xl";
+        iconBg.className = "p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30";
+
+        body.innerHTML = `
+          <p>Parabéns! Você completou os 12 ciclos mantendo o sistema em operação e gerando um total de <strong>${state.totalUsefulWork} pontos de Trabalho Útil</strong>.</p>
+          <p class="my-2 text-slate-300">Sua estratégia de prevenção de contaminação e controle de pressão manteve a integridade em <strong>${state.health}%</strong>.</p>
+          <p class="text-emerald-300"><strong>Lição Aprendida:</strong> A resiliência em sistemas complexos e na vida acadêmica vem do investimento contínuo em manutenção preventiva antes que o estresse invisível se acumule.</p>
+        `;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    // --- REINICIAR SIMULAÇÃO ---
+    function resetSimulation() {
+      state.cycle = 1;
+      state.health = 100;
+      state.contamination = 5;
+      state.cavitation = 2;
+      state.noise = PUMP_DATA[state.pumpType].baseNoise;
+      state.accumulatedDamage = 0;
+      state.totalUsefulWork = 0;
+      state.isCollapsed = false;
+
+      state.history = {
+        labels: [0],
+        health: [100],
+        contamination: [5],
+        cavitation: [2],
+        workload: [0]
+      };
+
+      timelineChart.data.labels = state.history.labels;
+      timelineChart.data.datasets[0].data = state.history.health;
+      timelineChart.data.datasets[1].data = state.history.contamination;
+      timelineChart.data.datasets[2].data = state.history.cavitation;
+      timelineChart.update();
+
+      updatePhysics();
+    }
+
+    // --- INICIALIZAR PÁGINA ---
+    window.onload = function() {
+      initChart();
+      renderCanvas();
+      selectPump('gear');
+      updateAllocation();
+      updatePhysics();
+    };
+  </script>
+</body>
+</html>
